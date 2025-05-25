@@ -32,7 +32,7 @@ def convert_seconds_to_human_readable_extended(seconds: int) -> str:
     Returns:
         str: A string in the format HH:MM:SS.
     """
-    if seconds < 0:
+    if seconds <= 0:
         return "00:00:00"
 
     hours = seconds // 3600

@@ -13,9 +13,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from classifier.heuristic_classify import HeuristicClassifier
-from db import DB
+from data import DB
 
-from sentence_transformers import SentenceTransformer, util
+from rapidfuzz import process, fuzz
 
 from log_utils import get_logger
 logger = get_logger("classifier", "classifier.log")
@@ -24,7 +24,9 @@ logger = get_logger("classifier", "classifier.log")
 GAME_KEYWORDS = ["game", "steam", "crack", "repack", "gog", "epic", "valve", "launcher"]
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
 
+MODEL_PATH = os.path.join(PROJECT_DIR, "models", "all-MiniLM-L6-v2")
 
 class GamesClassifier:
     def __init__(self):
@@ -43,27 +45,6 @@ class GamesClassifier:
                 self.game_titles = pickle.load(f)
 
         logger.info(f"Loaded {len(self.game_titles)} game titles from dataset.")
-
-        # Load precomputed embeddings if available
-        logger.info("Loading SentenceTransformer model...")
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-
-        logger.info("Loading precomputed embeddings for game titles...")
-        if os.path.exists(os.path.join(CURRENT_DIR, "game_embeddings.pkl")):
-            with open(os.path.join(CURRENT_DIR, "game_embeddings.pkl"), "rb") as f:
-                data = pickle.load(f)
-                self.game_titles = data["titles"]
-                self.game_embeddings = data["embeddings"]
-        else:
-            logger.info("No precomputed embeddings found. Recomputing...")
-            self.game_embeddings = self.model.encode(
-                self.game_titles, show_progress_bar=True
-            )
-            with open(os.path.join(CURRENT_DIR, "game_embeddings.pkl"), "wb") as f:
-                pickle.dump(
-                    {"titles": self.game_titles, "embeddings": self.game_embeddings}, f
-                )
-            logger.info("✅ Game embeddings saved.")
 
     def classify(self, exes=[]):
         if exes is None or len(exes) == 0:
@@ -112,14 +93,22 @@ class GamesClassifier:
                 traceback.print_exc(file="classifier_error.log")
                 exit()
 
-    def is_similar_game(self, exe_name):
+    def is_similar_game(self, exe_name, limit=5, score_cutoff=70):
         exe_clean = re.sub(r"[_\-\.]", " ", exe_name.lower().replace(".exe", ""))
-        query_embedding = self.model.encode(exe_clean)
-        cosine_scores = util.cos_sim(query_embedding, self.game_embeddings)[0]
-
-        top_score = cosine_scores.max().item()
-        top_index = cosine_scores.argmax().item()
-        top_match = self.game_titles[top_index]
+        results = process.extract(
+            exe_clean,
+            self.game_titles,
+            scorer=fuzz.WRatio ,  # more lenient for substring-like matches
+            limit=limit,
+            score_cutoff=score_cutoff
+        )
+        top_match = None
+        top_score = 0.0
+        
+        for match, score, _ in results:
+            if score > top_score:
+                top_match = match
+                top_score = score
 
         if top_score >= 0.75:
             return ("match", top_match, round(top_score, 2))

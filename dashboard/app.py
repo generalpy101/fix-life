@@ -6,39 +6,36 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-import web.web_utils as web_utils
-from log_utils import get_logger
+import dashboard.web_utils as web_utils
+from log_utils.logger_util import get_logger
 import logging
-from db import DB
+from data import DB
 
 app = Flask(__name__)
 flask_logger = get_logger("flask_app", "flask_app.log")
 
 db_obj = DB()
 
-flask_logger = get_logger("flask_app", "flask_app.log")
-# --- 1. Replace Flask's logger ---
-app.logger.handlers = []  # Remove default Flask handlers
-app.logger.propagate = False
-app.logger.setLevel(flask_logger.level)
-for handler in flask_logger.handlers:
-    app.logger.addHandler(handler)
+# flask_logger = get_logger("flask_app", "flask_app.log")
+# # --- 1. Replace Flask's logger ---
+# app.logger.handlers = []  # Remove default Flask handlers
+# app.logger.propagate = False
+# app.logger.setLevel(flask_logger.level)
+# for handler in flask_logger.handlers:
+#     app.logger.addHandler(handler)
 
-# --- 2. Replace Werkzeug logger ---
-werkzeug_logger = logging.getLogger("werkzeug")
-werkzeug_logger.handlers = []  # Remove default terminal handler
-werkzeug_logger.propagate = False
-werkzeug_logger.setLevel(flask_logger.level)
-for handler in flask_logger.handlers:
-    werkzeug_logger.addHandler(handler)
+# # --- 2. Replace Werkzeug logger ---
+# werkzeug_logger = logging.getLogger("werkzeug")
+# werkzeug_logger.handlers = []  # Remove default terminal handler
+# werkzeug_logger.propagate = False
+# werkzeug_logger.setLevel(flask_logger.level)
+# for handler in flask_logger.handlers:
+#     werkzeug_logger.addHandler(handler)
 
 
 @app.route("/")
 def index():
     timings = db_obj.get_timing_today()
-    if not timings:
-        return render_template("index.html", timings=[])
-
     timings_for_display = []
 
     # Format the timings for display.
@@ -53,7 +50,7 @@ def index():
         }
         timings_for_display.append(formatted_timing)
 
-    todays_timings = db_obj.get_total_time_today()
+    todays_timings = db_obj.get_total_time_today() or 0
     todays_timings_str = web_utils.convert_seconds_to_human_readable_extended(
         todays_timings
     )

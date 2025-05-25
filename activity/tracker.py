@@ -14,8 +14,8 @@ import subprocess
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from tracker.classifier.classifier import GamesClassifier
-from db import DB
+from activity.classifier.classifier import GamesClassifier
+from data import DB
 import utils
 from log_utils import get_logger
 
@@ -156,7 +156,12 @@ class Tracker:
         """
         while not self.stop_event.is_set():
             try:
-                violations = self.db.get_games_with_time_violations()
+                # Get current running process names
+                running_processes = utils.get_unique_windows_processes()
+                running_exe_names = set(
+                    proc.name() for proc in running_processes if proc.name()
+                )
+                violations = self.db.get_games_with_time_violations(running_processes=running_exe_names)
 
                 # If the game is running, we can notify the user
                 if violations:
@@ -225,6 +230,12 @@ class Tracker:
         self.violation_handler_thread.join(timeout=2)
 
     def start(self):
+        # Populate the DB with initial data if it is first run of the day
+        is_data_populated = self.db.get_is_data_populated_today()
+        if not is_data_populated:
+            logger.info("Populating initial data for today...")
+            self.db.populate_data_today()
+        
         self.update_thread.start()
         self.classify_thread.start()
         self.violation_handler_thread.start()
