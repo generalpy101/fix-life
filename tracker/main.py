@@ -17,6 +17,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tracker.classifier.classifier import GamesClassifier
 from db import DB
 import utils
+from log_utils import get_logger
+
+logger = get_logger("tracker", "tracker.log")
 
 
 class Tracker:
@@ -57,16 +60,16 @@ class Tracker:
                     for exe in new_exes:
                         self.seen_process_names.add(exe.name())
 
-                    print(
+                    logger.info(
                         f"[{datetime.now()}] Classified {len(new_exes)} new processes."
                     )
 
                 time.sleep(self.CLASSIFY_INTERVAL)
             except Exception as e:
-                print(f"Error classifying new processes: {e}")
+                logger.error(f"Error classifying new processes: {e}")
                 import traceback
 
-                traceback.print_exc()
+                traceback.print_excf(file="tracker_error.log")
 
     def update_game_timings(self):
         game_process_cache = {}  # pid -> (name, create_time)
@@ -133,10 +136,10 @@ class Tracker:
                 time.sleep(self.SLEEP_TIME)
 
             except Exception as e:
-                print(f"[{datetime.now()}] Error updating game timings: {e}")
+                logger.error(f"[{datetime.now()}] Error updating game timings: {e}")
                 import traceback
 
-                traceback.print_exc()
+                traceback.print_exc(file="tracker_error.log")
                 break
 
     def check_if_processes_running(self, exe_names: List[str]) -> List[str]:
@@ -174,17 +177,17 @@ class Tracker:
                                 # Kill the process if it has exceeded the violation limit
                                 for proc in psutil.process_iter(["name"]):
                                     if proc.info["name"] == game:
-                                        print(
+                                        logger.warning(
                                             f"Killing process {game} for exceeding violation limit."
                                         )
                                         proc.kill()
                                 self._notify_user_for_process_kill(game)
 
             except Exception as e:
-                print(f"Error checking timing violations: {e}")
+                logger.error(f"Error checking timing violations: {e}")
                 import traceback
 
-                traceback.print_exc()
+                traceback.print_exc(file="tracker_error.log")
             time.sleep(10)  # Check every 10 seconds
 
     def _notify_user_for_process_kill(self, game_name: str):
@@ -229,12 +232,12 @@ class Tracker:
 
 if __name__ == "__main__":
     tracker = Tracker()
-    print("Game tracker started. Press Ctrl+C to stop.")
+    logger.info("Game tracker started. Press Ctrl+C to stop.")
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("Stopping game tracker...")
+        logger.info("Stopping game tracker...")
         tracker.stop()
-        print("Game tracker stopped.")
+        logger.info("Game tracker stopped.")

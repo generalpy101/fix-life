@@ -17,6 +17,8 @@ from db import DB
 
 from sentence_transformers import SentenceTransformer, util
 
+from log_utils import get_logger
+logger = get_logger("classifier", "classifier.log")
 
 # Heuristic keywords that hint it's a game
 GAME_KEYWORDS = ["game", "steam", "crack", "repack", "gog", "epic", "valve", "launcher"]
@@ -28,32 +30,32 @@ class GamesClassifier:
     def __init__(self):
         self.db = DB()
 
-        print("Loading game titles and embeddings...")
+        logger.info("Loading game titles and embeddings...")
         # Load game titles from pickle file or dataset
         if not os.path.exists(os.path.join(CURRENT_DIR, "game_names.pkl")):
-            print("No precomputed game names found. Loading from dataset...")
+            logger.info("No precomputed game names found. Loading from dataset...")
             from datasets.process_games_dataset import get_game_names
 
             self.game_titles = get_game_names()
         else:
-            print("Loading precomputed game names from pickle file...")
+            logger.info("Loading precomputed game names from pickle file...")
             with open(os.path.join(CURRENT_DIR, "game_names.pkl"), "rb") as f:
                 self.game_titles = pickle.load(f)
 
-        print(f"Loaded {len(self.game_titles)} game titles from dataset.")
+        logger.info(f"Loaded {len(self.game_titles)} game titles from dataset.")
 
         # Load precomputed embeddings if available
-        print("Loading SentenceTransformer model...")
+        logger.info("Loading SentenceTransformer model...")
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-        print("Loading precomputed embeddings for game titles...")
+        logger.info("Loading precomputed embeddings for game titles...")
         if os.path.exists(os.path.join(CURRENT_DIR, "game_embeddings.pkl")):
             with open(os.path.join(CURRENT_DIR, "game_embeddings.pkl"), "rb") as f:
                 data = pickle.load(f)
                 self.game_titles = data["titles"]
                 self.game_embeddings = data["embeddings"]
         else:
-            print("No precomputed embeddings found. Recomputing...")
+            logger.info("No precomputed embeddings found. Recomputing...")
             self.game_embeddings = self.model.encode(
                 self.game_titles, show_progress_bar=True
             )
@@ -61,7 +63,7 @@ class GamesClassifier:
                 pickle.dump(
                     {"titles": self.game_titles, "embeddings": self.game_embeddings}, f
                 )
-            print("✅ Game embeddings saved.")
+            logger.info("✅ Game embeddings saved.")
 
     def classify(self, exes=[]):
         if exes is None or len(exes) == 0:
@@ -77,37 +79,37 @@ class GamesClassifier:
                 already_classified = self.db.get_is_present(process_name)
 
                 if already_classified is True:
-                    print(f"[SKIP] {process_name} already classified")
+                    logger.info(f"[SKIP] {process_name} already classified")
                     continue
 
                 result, match, score = self.is_similar_game(process_name)
                 if result == "match":
-                    print(f"[MATCH ✅] {exe} → {match} (score={score})")
+                    logger.info(f"[MATCH ✅] {exe} → {match} (score={score})")
                     is_game = True
                 elif result == "heuristic":
-                    print(f"[HEURISTIC 🤖] {exe} might be a game (score={score})")
+                    logger.info(f"[HEURISTIC 🤖] {exe} might be a game (score={score})")
                 else:
                     pass
 
                 # Run heuristic classifier to be sure
                 label, heuristic_score = classifier.classify_process(exe)
                 if label == "game":
-                    print(
+                    logger.info(
                         f"[HEURISTIC CLASSIFIER ✅] {exe} classified as game (score={heuristic_score:.2f})"
                     )
                     is_game = True
                 else:
-                    print(
+                    logger.info(
                         f"[HEURISTIC CLASSIFIER ❌] {exe} classified as {label} (score={heuristic_score:.2f})"
                     )
                     is_game = False  # To avoid false positives
 
                 self.db.upsert_is_game(process_name, is_game, user_marked=0)
             except Exception as e:
-                print(f"Error classifying {process_name}: {e}")
+                logger.info(f"Error classifying {process_name}: {e}")
                 import traceback
 
-                traceback.print_exc()
+                traceback.print_exc(file="classifier_error.log")
                 exit()
 
     def is_similar_game(self, exe_name):
@@ -163,7 +165,7 @@ class GamesClassifier:
 
 
 if __name__ == "__main__":
-    print("Classifying running processes...")
+    logger.info("Classifying running processes...")
     classifier = GamesClassifier()
 
     classifier.classify()

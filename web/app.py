@@ -4,13 +4,33 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-import web.web_utils as web_utils
-import json
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+import web.web_utils as web_utils
+from log_utils import get_logger
+import logging
 from db import DB
 
 app = Flask(__name__)
+flask_logger = get_logger("flask_app", "flask_app.log")
+
 db_obj = DB()
+
+flask_logger = get_logger("flask_app", "flask_app.log")
+# --- 1. Replace Flask's logger ---
+app.logger.handlers = []  # Remove default Flask handlers
+app.logger.propagate = False
+app.logger.setLevel(flask_logger.level)
+for handler in flask_logger.handlers:
+    app.logger.addHandler(handler)
+
+# --- 2. Replace Werkzeug logger ---
+werkzeug_logger = logging.getLogger("werkzeug")
+werkzeug_logger.handlers = []  # Remove default terminal handler
+werkzeug_logger.propagate = False
+werkzeug_logger.setLevel(flask_logger.level)
+for handler in flask_logger.handlers:
+    werkzeug_logger.addHandler(handler)
 
 
 @app.route("/")

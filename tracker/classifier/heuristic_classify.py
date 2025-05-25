@@ -8,6 +8,7 @@ from screeninfo import get_monitors
 import pythoncom
 
 from typing import List
+from log_utils import get_logger
 
 # Static exclusions (false positives)
 EXCLUDED_PROCESSES = {
@@ -17,7 +18,7 @@ EXCLUDED_PROCESSES = {
     "discord.exe",
     "steam.exe",
 }
-
+logger = get_logger("heuristic_classifier", "heuristic_classifier.log")
 
 class HeuristicClassifier:
     SCORE_THRESHOLD = 3.0  # Threshold for classifying a process as a game
@@ -102,10 +103,6 @@ class HeuristicClassifier:
             usage = {}
             for gpu in gpu_info:
                 name = gpu.Name
-                if "valorant" in name.lower() or "unreal" in name.lower():
-                    print(
-                        f"[GPU-WMI] Found GPU: {name} with Utilization: {gpu.UtilizationPercentage}"
-                    )
                 pid_part = name.split("pid_")[-1].split("_")[0]
                 try:
                     pid = int(pid_part)
@@ -114,7 +111,7 @@ class HeuristicClassifier:
                 usage[pid] = usage.get(pid, 0.0) + float(gpu.UtilizationPercentage)
             return usage  # {pid: gpu_percent, ...}
         except Exception as e:
-            print(f"[GPU-WMI] Error: {e}")
+            logger.error(f"[GPU-WMI] Error: {e}")
             return {}
 
     def _check_fullscreen(self, proc_pid):
@@ -162,9 +159,9 @@ if __name__ == "__main__":
         for proc in all_procs:
             label, score = classifier.classify_process(proc)
             if label == "game":
-                print(
+                logger.info(
                     f"Process: {proc.name()}, PID: {proc.pid}, Label: {label}, Score: {score:.2f}"
                 )
     except Exception as e:
-        print(f"Error during classification: {e}")
+        logger.error(f"Error during classification: {e}")
         pass

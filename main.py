@@ -7,6 +7,9 @@ from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 import sys
 import random
+from log_utils import get_logger
+
+logger = get_logger("main", "main.log")
 
 
 class FixItTray:
@@ -26,9 +29,9 @@ class FixItTray:
 
         while is_port_in_use(self.web_app_port):
             self.web_app_port = random.randint(5001, 50000)
-        print(f"Using web app port: {self.web_app_port}")
+        logger.info(f"Using web app port: {self.web_app_port}")
 
-        print("Initializing Tracker...")
+        logger.info("Initializing Tracker...")
         self.tracker = Tracker()
 
     def start(self):
@@ -40,7 +43,7 @@ class FixItTray:
         )
         self.web_app_thread.start()
 
-        print("Web app started on port:", self.web_app_port)
+        logger.info("Web app started on port:", self.web_app_port)
 
         self.icon = pystray.Icon("GameTracker")
         self.icon.icon = self._create_image()
@@ -58,7 +61,7 @@ class FixItTray:
             self.web_app_thread.join(timeout=2)
 
         # Final cleanup
-        print("Shutting down cleanly...")
+        logger.info("Shutting down cleanly...")
         sys.exit(0)
 
     def _open_dashboard(self):
