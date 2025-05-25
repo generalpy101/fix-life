@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Fix Life</title>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-extrabold text-gray-800 mb-6">🕹️ Game Timings</h1>
+
+    <div class="mb-6">
+        <div
+            class="bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl shadow-md p-4 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-700">Today's Game Time</h2>
+                <p class="text-2xl font-bold text-gray-900 todaysTotalTime">{{ todays_timings_str }}</p>
+                <p class="text-sm text-gray-600 totalTimeSpentText">
+                    {% if todays_timings / 60 < 60 %} 🎉 Great job staying focused today! {% elif todays_timings / 60 <
+                        120 %} 😐 Not bad, but keep an eye on your habits. {% else %} ⚠️ Uh-oh! Might be time for a
+                        break from gaming. {% endif %} </p>
+            </div>
+            <div class="text-4xl totalTimeSpentEmoji">
+                {% if todays_timings / 60 < 60 %} 😄 {% elif todays_timings / 60 < 120 %} 😬 {% else %} 😓 {% endif %}
+                    </div>
+            </div>
+        </div>
+
+
+        <!-- Summary card -->
+        <div class="mb-6">
+            <div class="bg-indigo-100 text-indigo-800 rounded-xl p-4 shadow-md">
+                <p class="text-lg font-medium">
+                    Showing data for <span class="font-bold">{{ timings|length }}</span> tracked {{ 'process' if
+                    timings|length == 1 else 'processes' }}.
+                </p>
+            </div>
+        </div>
+
+        <!-- Table container -->
+        <div class="overflow-x-auto bg-white shadow-lg rounded-xl border border-gray-200">
+            <table class="min-w-full text-left text-sm font-medium text-gray-700">
+                <thead class="bg-gray-100 text-gray-900 uppercase tracking-wider text-xs">
+                    <tr>
+                        <th class="px-6 py-4">Name</th>
+                        <th class="px-6 py-4">Date</th>
+                        <th class="px-6 py-4">Duration</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for timing in timings %}
+                    <tr class="hover:bg-gray-50 transition duration-150 ease-in-out bg-red-50 hover:bg-red-100">
+                        <td class="px-6 py-4 whitespace-nowrap exeName text-red-600 font-bold">{{ timing.exe_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ timing.date }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ timing.duration }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-center text-gray-400 italic">
+                            No data found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Violations Card -->
+        {% if formatted_violations %}
+        <div class="mt-8">
+            <div class="bg-gradient-to-r from-red-100 to-red-200 text-red-900 rounded-xl p-4 shadow-md">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold mb-1 flex items-center">
+                            🚫 Violations Detected
+                        </h2>
+                        <p class="text-sm text-red-800">
+                            You've exceeded your playtime limits on the following games. It's a good time to pause and
+                            refocus. 🎯
+                        </p>
+                    </div>
+                    <div class="text-3xl">
+                        🛑
+                    </div>
+                </div>
+
+                {% if formatted_violations %}
+                <ul class="mt-3 list-disc list-inside text-sm">
+                    {% for exe, violations in formatted_violations.items() %}
+                    <li class="ml-1">
+                        <span class="font-medium">{{ exe }}</span>: {{ violations | length }} violation{{ 's' if
+                        violations | length > 1 }}
+                        {% if violations | length > 3 %}
+                        <span class="text-red-700 font-semibold"> — Limit exceeded! App will now be terminated.</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script>
+        const todaysTotalTime = document.querySelector('.todaysTotalTime');
+
+        const totalTimeSpentMessages = [
+            "🎉 Great job staying focused today!",
+            "😐 Not bad, but keep an eye on your habits.",
+            "⚠️ Uh-oh! Might be time for a break from gaming."
+        ];
+
+        const totalTimeSpentEmojis = [
+            "😄",
+            "😬",
+            "😓"
+        ];
+
+        const totalTimeSpentText = document.querySelector('.totalTimeSpentText');
+        const totalTimeSpentEmoji = document.querySelector('.totalTimeSpentEmoji');
+
+        function getTotalTimeParts() {
+            totalParts = todaysTotalTime.textContent.trim().split(',')
+            // Each part is in the format "n hours", "m minutes", "s seconds"
+            let totalSeconds = 0;
+            totalParts.forEach(part => {
+                const [value, unit] = part.trim().split(' ');
+                if (unit.startsWith('hour')) {
+                    totalSeconds += parseInt(value, 10) * 3600; // Convert hours to seconds
+                } else if (unit.startsWith('minute')) {
+                    totalSeconds += parseInt(value, 10) * 60; // Convert minutes to seconds
+                } else if (unit.startsWith('second')) {
+                    totalSeconds += parseInt(value, 10); // Seconds
+                }
+            });
+
+            return [Math.floor(totalSeconds / 3600), // hours
+            Math.floor((totalSeconds % 3600) / 60), // minutes
+            totalSeconds % 60 // seconds
+            ];
+        }
+
+        function setTotalTimeFromParts(totalTimeParts) {
+            // Set the total time in the format "n hours, m minutes, s seconds"
+            // Will also handle overflow of seconds and minutes
+            let hours = totalTimeParts[0];
+            let minutes = totalTimeParts[1];
+            let seconds = totalTimeParts[2];
+
+            if (seconds >= 60) {
+                minutes += Math.floor(seconds / 60);
+                seconds = seconds % 60;
+            }
+            if (minutes >= 60) {
+                hours += Math.floor(minutes / 60);
+                minutes = minutes % 60;
+            }
+            todaysTotalTime.textContent = `${hours} hours, ${minutes} minutes, ${seconds} seconds`;
+
+            updateTotalTimeSpentText(totalTimeParts);
+        }
+
+        function updateTotalTimeSpentText(parts) {
+            // Update the text content of the total time spent element
+            // Updates emoji and other stuff
+            let hours = parts[0];
+            let minutes = parts[1];
+            let seconds = parts[2];
+
+            // Show text and emoji based on total time
+            if (hours < 1 && minutes < 60) {
+                totalTimeSpentText.textContent = totalTimeSpentMessages[0]; // Great job
+                totalTimeSpentEmoji.textContent = totalTimeSpentEmojis[0];
+            } else if (hours < 2 && minutes < 120) {
+                totalTimeSpentText.textContent = totalTimeSpentMessages[1]; // Not bad
+                totalTimeSpentEmoji.textContent = totalTimeSpentEmojis[1];
+            } else {
+                totalTimeSpentText.textContent = totalTimeSpentMessages[2]; // Uh-oh
+                totalTimeSpentEmoji.textContent = totalTimeSpentEmojis[2];
+            }
+
+        }
+
+        function updateExeTimeIfRunning() {
+            // Get all exeName elements
+            const exeNames = document.querySelectorAll('.exeName');
+            // Create a list of exe names
+            const exeList = Array.from(exeNames).map(el => el.textContent.trim());
+
+            // Fetch the current running processes
+            fetch('/api/are_games_running', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ games: exeList })
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.running_games) {
+                        // If there are running games, update their timings in the table
+                        // This is for UI only to reduce DB calls
+                        // May cause inconsistencies with actual timings but will be corrected on page refresh
+                        // Response will be in the form {running_games: {exe_name: bool, ...}}
+                        exeNames.forEach(el => {
+                            const exeName = el.textContent.trim();
+                            if (data.running_games[exeName]) {
+                                // Remove the class indicating the game is not running
+                                el.classList.remove('text-red-600', 'font-bold');
+                                el.parentElement.classList.remove('bg-red-50', 'hover:bg-red-100');
+
+                                // If the game is running, add a class to highlight the row including background color and text color
+                                el.classList.add('text-green-600', 'font-bold');
+                                el.parentElement.classList.add('bg-green-50', 'hover:bg-green-100');
+
+                                // Update the timing, add 2 second to the current time
+                                const currentTime = el.nextElementSibling.nextElementSibling.textContent.trim();
+                                const timeParts = currentTime.split(':').map(part => parseInt(part, 10));
+                                if (timeParts.length === 3) {
+                                    // Assuming format is HH:MM:SS
+                                    timeParts[2] += 1; // Increment seconds
+                                    if (timeParts[2] >= 60) {
+                                        timeParts[2] = 0;
+                                        timeParts[1] += 1; // Increment minutes
+                                    }
+                                    if (timeParts[1] >= 60) {
+                                        timeParts[1] = 0;
+                                        timeParts[0] += 1; // Increment hours
+                                    }
+                                    el.nextElementSibling.nextElementSibling.textContent = timeParts.map(part => part.toString().padStart(2, '0')).join(':');
+
+                                    // Update today's total time
+                                    totalTimeParts = getTotalTimeParts();
+                                    // Add 1 seconds to the total time
+                                    totalTimeParts[2] += 1;
+                                    setTotalTimeFromParts(totalTimeParts);
+                                }
+                            } else {
+                                // If the game is not running, remove the highlight class
+                                el.classList.remove('text-green-600', 'font-bold');
+                                el.parentElement.classList.remove('bg-green-50', 'hover:bg-green-100');
+
+                                // Add a class to indicate the game is not running
+                                el.classList.add('text-red-600', 'font-bold');
+                                el.parentElement.classList.add('bg-red-50', 'hover:bg-red-100');
+                            }
+
+                        });
+                    }
+                });
+        }
+
+        // Update the timings every 2 second
+        // Since this is a local app, we can afford to update frequently
+        setInterval(updateExeTimeIfRunning, 1000);
+    </script>
+    {% endblock content %}

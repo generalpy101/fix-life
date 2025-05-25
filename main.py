@@ -1,67 +1,83 @@
-import subprocess
-import time
-import datetime
-
-# List of games to track (add your games here)
-GAMES = {
-    "VALORANT.exe": 100,   # 1 hour in seconds
-    "cs2.exe": 1800,        # 30 mins
-    "steam.exe": 2700       # 45 mins
-}
-
-# Time tracking for each game
-usage = {game: 0 for game in GAMES}
-reminder_interval = 60  # seconds after limit to repeat notification
-
-# Reminder tracking
-last_reminder = {game: None for game in GAMES}
-
-def get_running_windows_processes():
-    result = subprocess.run(["tasklist.exe"], capture_output=True, text=True)
-    return result.stdout
-
-def is_game_running(tasklist_output, game):
-    return game.lower() in tasklist_output.lower()
-
-def notify_user(game):
-    message = f"{game} has exceeded the time limit! Please stop playing."
-    powershell_cmd = (
-        "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; "
-        f"[System.Windows.Forms.MessageBox]::Show('{message}', 'Game Tracker Alert', 'OK', 'Warning')"
-    )
-    subprocess.run(["powershell.exe", "-Command", powershell_cmd])
+import threading
+import webbrowser
+from tracker import Tracker
+from web import app
+import pystray
+from pystray import MenuItem as item
+from PIL import Image, ImageDraw
+import sys
+import random
 
 
-def kill_game(game):
-    subprocess.run(["taskkill.exe", "/F", "/IM", game], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+class FixItTray:
+    def __init__(self):
+        self.icon = None
+        self.web_app_thread = None
+        self.web_app_port = random.randint(
+            5001, 50000
+        )  # Random port to avoid conflicts
 
-def main():
-    print("[*] Game time tracker started...")
-    while True:
-        tasklist = get_running_windows_processes()
+        # Check if the port is available
+        def is_port_in_use(port: int) -> bool:
+            import socket
 
-        for game, limit in GAMES.items():
-            if is_game_running(tasklist, game):
-                usage[game] += 5
-                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {game} running: {usage[game]}s")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex(("localhost", port)) == 0
 
-                if usage[game] >= limit:
-                    now = time.time()
+        while is_port_in_use(self.web_app_port):
+            self.web_app_port = random.randint(5001, 50000)
+        print(f"Using web app port: {self.web_app_port}")
 
-                    # Send reminders every 1 min
-                    if last_reminder[game] is None or now - last_reminder[game] >= reminder_interval:
-                        notify_user(game)
-                        last_reminder[game] = now
+        print("Initializing Tracker...")
+        self.tracker = Tracker()
 
-                    # Optional: kill game
-                    # kill_game(game)
-                    # print(f"[!] Killed {game} due to time limit.")
+    def start(self):
+        self.tracker.start()
+        self.web_app_thread = threading.Thread(
+            target=app.app.run,
+            kwargs={"port": self.web_app_port, "debug": True, "use_reloader": False},
+            daemon=True,
+        )
+        self.web_app_thread.start()
 
-            else:
-                # Reset reminder if game is closed
-                last_reminder[game] = None
+        print("Web app started on port:", self.web_app_port)
 
-        time.sleep(5)
+        self.icon = pystray.Icon("GameTracker")
+        self.icon.icon = self._create_image()
+        self.icon.menu = pystray.Menu(
+            item("Open Dashboard", lambda: self._open_dashboard()),
+            item("Quit", self._quit_app),
+        )
+        self.icon.run()
+
+    def stop(self):
+        self.tracker.stop()
+        if self.icon:
+            self.icon.stop()
+        if self.web_app_thread and self.web_app_thread.is_alive():
+            self.web_app_thread.join(timeout=2)
+
+        # Final cleanup
+        print("Shutting down cleanly...")
+        sys.exit(0)
+
+    def _open_dashboard(self):
+        webbrowser.open(f"http://localhost:{self.web_app_port}/", new=2)
+
+    def _create_image(self):
+        image = Image.new("RGB", (64, 64), "black")
+        dc = ImageDraw.Draw(image)
+        dc.rectangle((16, 16, 48, 48), fill="white")
+        return image
+
+    def _quit_app(self, icon, item):
+        self.stop()
+        icon.stop()
+
 
 if __name__ == "__main__":
-    main()
+    tray_app = FixItTray()
+    try:
+        tray_app.start()
+    except KeyboardInterrupt:
+        tray_app.stop()
