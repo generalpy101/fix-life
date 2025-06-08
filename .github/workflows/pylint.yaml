@@ -102,7 +102,7 @@ jobs:
             echo "pylint_score=10.0" >> $GITHUB_OUTPUT
             exit 0
           fi
-          OUTPUT=$(pylint $FILES --rcfile=.pylintrc --disable=import-error --score=y 2>&1)
+          OUTPUT=$(pylint $FILES --rcfile=.pylintrc --disable=import-error --score=y 2>&1 || true)
           echo "$OUTPUT"
           SCORE_LINE=$(echo "$OUTPUT" | grep "Your code has been rated at")
           if [ -n "$SCORE_LINE" ]; then
