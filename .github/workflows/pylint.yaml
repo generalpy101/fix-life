@@ -98,7 +98,7 @@ jobs:
         id: pylint-full
         shell: pwsh
         run: |
-          $files = git ls-files '*.py' -z | ForEach-Object { $_.Trim() }
+          $files = git ls-files '*.py' | ForEach-Object { $_.Trim() }
           if (-not $files) {
             Write-Output "No Python files found"
             echo "pylint_score=10.0" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
