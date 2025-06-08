@@ -1,0 +1,110 @@
+name: Pylint Workflow
+
+on:
+  issue_comment:
+    types: [created]
+  push:
+    branches:
+      - main
+
+jobs:
+    lint-diff:
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/lint')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint
+
+      - name: Get changed files in PR
+        id: changed-files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          echo "Fetching changed files for PR #$PR_NUMBER"
+          FILES=$(gh pr diff $PR_NUMBER --name-only)
+          echo "Changed files:"
+          echo "$FILES"
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Run pylint on changed python files
+        id: pylint-diff
+        run: |
+          echo "Changed files:"
+          echo "${{ steps.changed-files.outputs.changed_files }}"
+
+          FILES=$(echo "${{ steps.changed-files.outputs.changed_files }}" | grep '\.py$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No Python files changed, skipping pylint."
+            echo "pylint_score=10.0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Running pylint on these files:"
+          echo "$FILES"
+
+          pylint_output=$(pylint $FILES --rcfile=.pylintrc --score=y)
+          echo "$pylint_output"
+
+          score_line=$(echo "$pylint_output" | grep "Your code has been rated at")
+          score=$(echo $score_line | awk '{print $7}' | cut -d'/' -f1)
+
+          echo "Pylint score on changed files: $score"
+          echo "pylint_score=$score" >> $GITHUB_OUTPUT
+
+          python -c "import sys; exit(0 if float('$score') >= 9.5 else 1)"
+
+      - name: Comment PR with pylint result
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Pylint score on changed files: **${{ steps.pylint-diff.outputs.pylint_score }}**
+
+            Threshold to pass: 9.5
+
+  lint-full:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install pylint
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint
+
+      - name: Run pylint on full codebase
+        id: pylint-full
+        run: |
+          pylint_output=$(pylint . --rcfile=.pylintrc --score=y)
+          echo "$pylint_output"
+
+          score_line=$(echo "$pylint_output" | grep "Your code has been rated at")
+          score=$(echo $score_line | awk '{print $7}' | cut -d'/' -f1)
+
+          echo "Full pylint score: $score"
+          echo "pylint_score=$score" >> $GITHUB_OUTPUT
+
+          python -c "import sys; exit(0 if float('$score') >= 9.7 else 1)"
+
+      - name: Final status
+        run: echo "Pylint full score check passed with score ${{ steps.pylint-full.outputs.pylint_score }}"

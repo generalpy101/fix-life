@@ -1,4 +1,5 @@
 import random
+import socket
 import sys
 import threading
 import webbrowser
@@ -28,8 +29,6 @@ class FixItTray:
 
         # Check if the port is available
         def is_port_in_use(port: int) -> bool:
-            import socket
-
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 return s.connect_ex(("localhost", port)) == 0
 
@@ -54,7 +53,7 @@ class FixItTray:
         self.icon = pystray.Icon("GameTracker")
         self.icon.icon = self._create_image()
         self.icon.menu = pystray.Menu(
-            item("Open Dashboard", lambda: self._open_dashboard()),
+            item("Open Dashboard", lambda: self._open_dashboard()),  # pylint: disable=unnecessary-lambda
             item("Quit", self._quit_app),
         )
         self.icon.run()
@@ -77,7 +76,7 @@ class FixItTray:
         image = Image.open(ICON_PATH)
         return image
 
-    def _quit_app(self, icon, item):
+    def _quit_app(self, icon, *args, **kwargs):  # pylint: disable=unused-argument
         self.stop()
         icon.stop()
 
@@ -88,12 +87,12 @@ if __name__ == "__main__":
         tray_app.start()
     except KeyboardInterrupt:
         tray_app.stop()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error(f"Unexpected error: {e}")
         # Write a traceback to a log file
         import traceback
 
-        with open("error.log", "w") as f:
+        with open("error.log", "w", encoding="utf-8") as f:
             traceback.print_exc(file=f)
         tray_app.stop()
         sys.exit(1)

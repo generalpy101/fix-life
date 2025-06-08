@@ -1,0 +1,10 @@
+[MESSAGES CONTROL]
+
+disable=
+    missing-function-docstring,
+    missing-module-docstring,
+    line-too-long,
+    missing-class-docstring,
+    logging-fstring-interpolation,
+    broad-exception-caught,
+    c-extension-no-member,

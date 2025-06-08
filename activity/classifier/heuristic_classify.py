@@ -99,8 +99,8 @@ class HeuristicClassifier:
 
     def _get_gpu_usage_percent(self):
         try:
-            pythoncom.CoInitialize()
-            w = wmi.WMI(namespace="root\CIMV2")
+            pythoncom.CoInitialize()  # pylint: disable=no-member
+            w = wmi.WMI(namespace="root\CIMV2")  # pylint: disable=anomalous-backslash-in-string
             gpu_info = w.Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine()
             usage = {}
             for gpu in gpu_info:

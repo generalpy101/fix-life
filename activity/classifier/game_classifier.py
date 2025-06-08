@@ -6,10 +6,6 @@ from typing import List
 
 import psutil
 from psutil import Process
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
 from rapidfuzz import fuzz, process
 
 from activity.classifier.heuristic_classify import HeuristicClassifier
@@ -53,7 +49,7 @@ class GamesClassifier:
 
         logger.info(f"Loaded {len(self.game_titles)} game titles from dataset.")
 
-    def classify(self, exes=[]):
+    def classify(self, exes=[]):  # pylint: disable=dangerous-default-value
         if exes is None or len(exes) == 0:
             exes = self.get_windows_processes()
 
@@ -95,10 +91,10 @@ class GamesClassifier:
                 self.db.upsert_is_game(process_name, is_game, user_marked=0)
             except Exception as e:
                 logger.info(f"Error classifying {process_name}: {e}")
-                import traceback
+                import traceback  # pylint: disable=import-outside-toplevel
 
                 traceback.print_exc(file="classifier_error.log")
-                exit()
+                sys.exit(1)
 
     def is_similar_game(self, exe_name, limit=5, score_cutoff=70):
         exe_clean = re.sub(r"[_\-\.]", " ", exe_name.lower().replace(".exe", ""))
@@ -119,20 +115,21 @@ class GamesClassifier:
 
         if top_score >= 0.75:
             return ("match", top_match, round(top_score, 2))
-        elif any(keyword in exe_clean for keyword in GAME_KEYWORDS):
-            return ("heuristic", None, round(top_score, 2))
-        else:
-            return ("unknown", None, round(top_score, 2))
 
-    def is_game(self, process: psutil.Process) -> bool:
+        if any(keyword in exe_clean for keyword in GAME_KEYWORDS):
+            return ("heuristic", None, round(top_score, 2))
+
+        return ("unknown", None, round(top_score, 2))
+
+    def is_game(self, process_name: psutil.Process) -> bool:
         """
         Check if the given executable name is classified as a game.
         """
-        if not process or not isinstance(process, psutil.Process):
+        if not process_name or not isinstance(process_name, psutil.Process):
             raise ValueError(
                 "Invalid process provided. Must be a psutil.Process instance."
             )
-        exe_name = process.name()
+        exe_name = process_name.name()
         if not exe_name:
             return False
         return self.db.get_is_game(exe_name)

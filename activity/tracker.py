@@ -1,6 +1,4 @@
-import os
 import subprocess
-import sys
 import threading
 import time
 from collections import defaultdict
@@ -10,10 +8,7 @@ from typing import List
 import psutil
 from psutil import Process
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
-import activity.utils as utils
+from activity import utils
 from activity.classifier.game_classifier import GamesClassifier
 from data import DB
 from log_utils import get_logger
@@ -66,9 +61,9 @@ class Tracker:
                 time.sleep(self.CLASSIFY_INTERVAL)
             except Exception as e:
                 logger.error(f"Error classifying new processes: {e}")
-                import traceback
+                import traceback  # pylint: disable=import-outside-toplevel
 
-                traceback.print_excf(file="tracker_error.log")
+                traceback.print_exc(file="tracker_error.log")
 
     def update_game_timings(self):
         game_process_cache = {}  # pid -> (name, create_time)
@@ -137,7 +132,7 @@ class Tracker:
 
             except Exception as e:
                 logger.error(f"[{datetime.now()}] Error updating game timings: {e}")
-                import traceback
+                import traceback  # pylint: disable=import-outside-toplevel
 
                 traceback.print_exc(file="tracker_error.log")
                 break
@@ -170,7 +165,7 @@ class Tracker:
                     running_games = self.check_if_processes_running(
                         [v[0] for v in violations]
                     )
-                    for game, max_time, notify_limit in violations:
+                    for game, max_time, _ in violations:
                         if game in running_games:
                             current_time = self.db.get_timing_for_exe(game)
                             violation_count = self.db.get_violation_count_for_exe(game)
@@ -192,7 +187,7 @@ class Tracker:
 
             except Exception as e:
                 logger.error(f"Error checking timing violations: {e}")
-                import traceback
+                import traceback  # pylint: disable=import-outside-toplevel
 
                 traceback.print_exc(file="tracker_error.log")
             time.sleep(10)  # Check every 10 seconds
@@ -208,11 +203,12 @@ class Tracker:
                 f'"{message}", "Game Tracker Alert", '
                 f"[System.Windows.Forms.MessageBoxButtons]::OK, "
                 f"[System.Windows.Forms.MessageBoxIcon]::Error)",
-            ]
+            ],
+            check=False
         )
 
     def _notify_user_for_violation(self, game_name: str, max_time: int):
-        message = f"{game_name} has exceeded the time limit! Please stop playing."
+        message = f"{game_name} has exceeded the time limit! Please stop playing. Max time: {max_time}"
         subprocess.run(
             [
                 "powershell.exe",
@@ -222,7 +218,8 @@ class Tracker:
                 f'"{message}", "Game Tracker Alert", '
                 f"[System.Windows.Forms.MessageBoxButtons]::OK, "
                 f"[System.Windows.Forms.MessageBoxIcon]::Warning)",
-            ]
+            ],
+            check=False
         )
 
     def _handle_first_run_today(self):
