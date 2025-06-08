@@ -56,6 +56,7 @@ cover/
 *.pot
 
 # Django stuff:
+*.log.*
 *.log
 local_settings.py
 db.sqlite3
@@ -189,3 +190,4 @@ cython_debug/
 
 *.db
 *.pkl
+Output/

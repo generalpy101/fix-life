@@ -6,10 +6,10 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-import web.web_utils as web_utils
-from log_utils import get_logger
+import dashboard.web_utils as web_utils
+from log_utils.logger_util import get_logger
 import logging
-from db import DB
+from data import DB
 
 app = Flask(__name__)
 flask_logger = get_logger("flask_app", "flask_app.log")
@@ -36,9 +36,6 @@ for handler in flask_logger.handlers:
 @app.route("/")
 def index():
     timings = db_obj.get_timing_today()
-    if not timings:
-        return render_template("index.html", timings=[])
-
     timings_for_display = []
 
     # Format the timings for display.
@@ -53,16 +50,16 @@ def index():
         }
         timings_for_display.append(formatted_timing)
 
-    todays_timings = db_obj.get_total_time_today()
+    todays_timings = db_obj.get_total_time_today() or 0
     todays_timings_str = web_utils.convert_seconds_to_human_readable_extended(
         todays_timings
     )
 
     # Get all violations
     violations = db_obj.get_all_violations()
+    violations_by_exe = {}
     if len(violations) > 0:
         # Group by exe_name
-        violations_by_exe = {}
         for violation in violations:
             exe_name = violation[0]
             if exe_name not in violations_by_exe:

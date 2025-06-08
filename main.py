@@ -1,7 +1,7 @@
 import threading
 import webbrowser
-from tracker import Tracker
-from web import app
+from activity.tracker import Tracker
+from dashboard import app
 import pystray
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
@@ -79,8 +79,17 @@ class FixItTray:
 
 
 if __name__ == "__main__":
-    tray_app = FixItTray()
     try:
+        tray_app = FixItTray()
         tray_app.start()
     except KeyboardInterrupt:
         tray_app.stop()
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        # Write a traceback to a log file
+        import traceback
+
+        with open("error.log", "w") as f:
+            traceback.print_exc(file=f)
+        tray_app.stop()
+        sys.exit(1)

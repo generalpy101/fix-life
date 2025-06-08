@@ -20,6 +20,7 @@ EXCLUDED_PROCESSES = {
 }
 logger = get_logger("heuristic_classifier", "heuristic_classifier.log")
 
+
 class HeuristicClassifier:
     SCORE_THRESHOLD = 3.0  # Threshold for classifying a process as a game
 

@@ -14,9 +14,9 @@ import subprocess
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from tracker.classifier.classifier import GamesClassifier
-from db import DB
-import utils
+from activity.classifier.game_classifier import GamesClassifier
+from data import DB
+import activity.utils as utils
 from log_utils import get_logger
 
 logger = get_logger("tracker", "tracker.log")
@@ -74,10 +74,13 @@ class Tracker:
     def update_game_timings(self):
         game_process_cache = {}  # pid -> (name, create_time)
 
+        previous_tick = time.time()  # For tracking the last update time
+        current_tick = time.time()  # For tracking the current update time
+
         while not self.stop_event.is_set():
             try:
+                self._handle_first_run_today()  # Ensure DB is populated for the day first
                 exes: List[Process] = utils.get_unique_windows_processes()
-                now = time.time()
                 updated_games = defaultdict(int)
 
                 for exe in exes:
@@ -94,6 +97,9 @@ class Tracker:
                     except Exception:
                         continue  # Classifier failed, skip
 
+                    now = time.time()
+                    current_tick = time.time()
+
                     # First-time seen process
                     if pid not in game_process_cache:
                         game_process_cache[pid] = (name, create_time)
@@ -108,17 +114,12 @@ class Tracker:
                             )
                             continue  # Avoid double-counting in updated_games
 
-                    # If it's already tracked, increment normally
-                    updated_time = updated_games[name] + self.SLEEP_TIME
-                    # Also check time since process creation
-                    if pid in game_process_cache:
-                        _, create_time = game_process_cache[pid]
-                        elapsed_time = int(now - create_time)
-
-                        # If difference between elapsed time and updated time is greater than SLEEP_TIME, use elapsed time
-                        if elapsed_time > updated_time:
-                            updated_time = elapsed_time
-
+                    # Find difference between current time and last update time
+                    # Not using SLEEP_TIME as thread delay may happen
+                    updated_time = int(current_tick - previous_tick)
+                    previous_tick = current_tick
+                    if updated_time <= 0:
+                        continue
                     updated_games[name] = updated_time
 
                 # Batch update game durations
@@ -156,7 +157,14 @@ class Tracker:
         """
         while not self.stop_event.is_set():
             try:
-                violations = self.db.get_games_with_time_violations()
+                # Get current running process names
+                running_processes = utils.get_unique_windows_processes()
+                running_exe_names = set(
+                    proc.name() for proc in running_processes if proc.name()
+                )
+                violations = self.db.get_games_with_time_violations(
+                    running_processes=running_exe_names
+                )
 
                 # If the game is running, we can notify the user
                 if violations:
@@ -218,6 +226,13 @@ class Tracker:
             ]
         )
 
+    def _handle_first_run_today(self):
+        # Populate the DB with initial data if it is first run of the day
+        is_data_populated = self.db.get_is_data_populated_today()
+        if not is_data_populated:
+            logger.info("Populating initial data for today...")
+            self.db.populate_data_today()
+
     def stop(self):
         self.stop_event.set()
         self.classify_thread.join(timeout=2)
@@ -225,6 +240,7 @@ class Tracker:
         self.violation_handler_thread.join(timeout=2)
 
     def start(self):
+        self._handle_first_run_today()
         self.update_thread.start()
         self.classify_thread.start()
         self.violation_handler_thread.start()
