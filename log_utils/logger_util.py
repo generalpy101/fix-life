@@ -7,7 +7,7 @@ load_dotenv()
 
 # Determine the environment
 ENV = os.getenv("ENV", "production").lower()
-LOG_TO_TERMINAL = os.getenv("LOG_TO_TERMINAL", "true").lower() == "true"
+LOG_TO_TERMINAL = os.getenv("LOG_TO_TERMINAL", "false").lower() == "true"
 
 # Default log directory based on env
 DEFAULT_LOG_DIR = (
