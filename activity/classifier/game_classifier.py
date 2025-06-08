@@ -12,12 +12,13 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from classifier.heuristic_classify import HeuristicClassifier
+from activity.classifier.heuristic_classify import HeuristicClassifier
 from data import DB
 
 from rapidfuzz import process, fuzz
 
 from log_utils import get_logger
+
 logger = get_logger("classifier", "classifier.log")
 
 # Heuristic keywords that hint it's a game
@@ -28,6 +29,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
 
 MODEL_PATH = os.path.join(PROJECT_DIR, "models", "all-MiniLM-L6-v2")
 
+
 class GamesClassifier:
     def __init__(self):
         self.db = DB()
@@ -36,9 +38,19 @@ class GamesClassifier:
         # Load game titles from pickle file or dataset
         if not os.path.exists(os.path.join(CURRENT_DIR, "game_names.pkl")):
             logger.info("No precomputed game names found. Loading from dataset...")
-            from datasets.process_games_dataset import get_game_names
-
-            self.game_titles = get_game_names()
+            # Set some default game titles
+            self.game_titles = [
+                "Counter-Strike: Global Offensive",
+                "Dota 2",
+                "The Witcher 3: Wild Hunt",
+                "Cyberpunk 2077",
+                "Half-Life 2",
+                "Portal 2",
+                "Stardew Valley",
+                "Terraria",
+                "Hades",
+                "Celeste",
+            ]
         else:
             logger.info("Loading precomputed game names from pickle file...")
             with open(os.path.join(CURRENT_DIR, "game_names.pkl"), "rb") as f:
@@ -98,13 +110,13 @@ class GamesClassifier:
         results = process.extract(
             exe_clean,
             self.game_titles,
-            scorer=fuzz.WRatio ,  # more lenient for substring-like matches
+            scorer=fuzz.WRatio,  # more lenient for substring-like matches
             limit=limit,
-            score_cutoff=score_cutoff
+            score_cutoff=score_cutoff,
         )
         top_match = None
         top_score = 0.0
-        
+
         for match, score, _ in results:
             if score > top_score:
                 top_match = match

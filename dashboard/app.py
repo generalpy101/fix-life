@@ -16,21 +16,21 @@ flask_logger = get_logger("flask_app", "flask_app.log")
 
 db_obj = DB()
 
-# flask_logger = get_logger("flask_app", "flask_app.log")
-# # --- 1. Replace Flask's logger ---
-# app.logger.handlers = []  # Remove default Flask handlers
-# app.logger.propagate = False
-# app.logger.setLevel(flask_logger.level)
-# for handler in flask_logger.handlers:
-#     app.logger.addHandler(handler)
+flask_logger = get_logger("flask_app", "flask_app.log")
+# --- 1. Replace Flask's logger ---
+app.logger.handlers = []  # Remove default Flask handlers
+app.logger.propagate = False
+app.logger.setLevel(flask_logger.level)
+for handler in flask_logger.handlers:
+    app.logger.addHandler(handler)
 
-# # --- 2. Replace Werkzeug logger ---
-# werkzeug_logger = logging.getLogger("werkzeug")
-# werkzeug_logger.handlers = []  # Remove default terminal handler
-# werkzeug_logger.propagate = False
-# werkzeug_logger.setLevel(flask_logger.level)
-# for handler in flask_logger.handlers:
-#     werkzeug_logger.addHandler(handler)
+# --- 2. Replace Werkzeug logger ---
+werkzeug_logger = logging.getLogger("werkzeug")
+werkzeug_logger.handlers = []  # Remove default terminal handler
+werkzeug_logger.propagate = False
+werkzeug_logger.setLevel(flask_logger.level)
+for handler in flask_logger.handlers:
+    werkzeug_logger.addHandler(handler)
 
 
 @app.route("/")
@@ -57,9 +57,9 @@ def index():
 
     # Get all violations
     violations = db_obj.get_all_violations()
+    violations_by_exe = {}
     if len(violations) > 0:
         # Group by exe_name
-        violations_by_exe = {}
         for violation in violations:
             exe_name = violation[0]
             if exe_name not in violations_by_exe:

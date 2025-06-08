@@ -3,7 +3,10 @@ import os
 import threading
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "game_tracker.db")
+# DB path should be %APP_DATA%/local/FixLife <- app name/game_tracker.db
+APPDATA = os.getenv("APPDATA", os.path.expanduser("~"))
+DB_DIR = os.path.join(APPDATA, "FixLife", "data")
+DB_PATH = os.path.join(DB_DIR, "game_tracker.db")
 _LOCK = threading.Lock()
 
 DEFAULT_TIME_LIMIT = 60  # Default time limit for games in minutes
@@ -20,6 +23,10 @@ class DB:
 
     def _ensure_db(self):
         """Create tables if not exists."""
+        # Create the directory if it doesn't exist
+        if not os.path.exists(DB_DIR):
+            os.makedirs(DB_DIR, exist_ok=True)
+        # Create the database and tables
         with self._connect() as conn:
             c = conn.cursor()
             c.execute(
@@ -33,7 +40,6 @@ class DB:
 
             c.execute(
                 """CREATE TABLE IF NOT EXISTS timings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 exe_name TEXT,
                 date TEXT,
                 duration INTEGER DEFAULT 0,
@@ -73,14 +79,16 @@ class DB:
                 notify_limit INTEGER DEFAULT 0
             )"""
             )
-            
+
             # Check if is_data_populated_today table exists, if not create it
-            c.execute('''
+            c.execute(
+                """
                 CREATE TABLE IF NOT EXISTS is_data_populated_today (
                     date TEXT PRIMARY KEY,
                     is_populated INTEGER
                 )
-            ''')
+            """
+            )
 
             conn.commit()
 
@@ -114,10 +122,12 @@ class DB:
                     (exe_name,),
                 )
             conn.commit()
-    
+
     def get_game_names(self):
         with _LOCK, self._connect() as conn:
-            rows = conn.execute("SELECT exe_name FROM is_game WHERE is_game = 1").fetchall()
+            rows = conn.execute(
+                "SELECT exe_name FROM is_game WHERE is_game = 1"
+            ).fetchall()
             return [row[0] for row in rows]
 
     def get_is_game(self, exe_name):
@@ -372,13 +382,13 @@ class DB:
         """
         Get all games which have violated the time limit.
         Will fetch from both the timings and is_game tables to get the necessary information.
-        """        
+        """
         # Get today's timings
         current_timings = self.get_timing_today()
         current_timings_dict = {row[0]: row[1] for row in current_timings}
         timing_settings = self.get_all_timing_settings()
         timing_settings_dict = {row[0]: row[1] for row in timing_settings}
-        
+
         with _LOCK, self._connect() as conn:
             # Fetch violations too to ignore duplicate entries
             current_violations = conn.execute(
@@ -390,7 +400,10 @@ class DB:
             seen_violations = set()  # To avoid duplicate entries in the violations list
             for exe_name, max_time in timing_settings_dict.items():
                 # If already in violations, skip if not running
-                if exe_name in current_violations_set and exe_name not in running_processes:
+                if (
+                    exe_name in current_violations_set
+                    and exe_name not in running_processes
+                ):
                     if exe_name not in seen_violations:
                         violations.append((exe_name, 0, max_time))
                     seen_violations.add(exe_name)
@@ -399,8 +412,8 @@ class DB:
                 # Find current duration for this game
                 current_duration = current_timings_dict.get(exe_name, 0)
                 if (
-                    (max_time > 0.1 and current_duration > 0.1) and current_duration > max_time * 60
-                ):  # Only consider if max_time is set and greater than 0.1 minutes and current_duration is greater than 0.1 minutes
+                    max_time > 0.1 and current_duration > 0.1
+                ) and current_duration > max_time * 60:  # Only consider if max_time is set and greater than 0.1 minutes and current_duration is greater than 0.1 minutes
                     # If current duration exceeds max time, add to violations
                     violations.append((exe_name, current_duration, max_time))
             # Add entries to violations table
@@ -428,7 +441,7 @@ class DB:
                 "SELECT COUNT(*) FROM violations WHERE exe_name = ?", (exe_name,)
             ).fetchone()
             return row[0] if row else 0
-    
+
     ##### Miscellaneous Methods #####
     def get_is_data_populated_today(self):
         """
@@ -442,16 +455,16 @@ class DB:
                 (date,),
             ).fetchone()
             return bool(row[0]) if row else False
-    
+
     def populate_data_today(self):
         """
         Populate esssential data for today.
         """
         date = datetime.now().date().isoformat()
-        
+
         # Add game timing entries for today
         games = self.get_game_names()
-        
+
         with _LOCK, self._connect() as conn:
             for game in games:
                 conn.execute(
@@ -462,7 +475,7 @@ class DB:
                 """,
                     (game, date),
                 )
-            
+
             # Remove all violations. Fresh start for the day
             conn.execute("DELETE FROM violations")
             # Mark today's data as populated

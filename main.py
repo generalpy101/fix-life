@@ -88,6 +88,7 @@ if __name__ == "__main__":
         logger.error(f"Unexpected error: {e}")
         # Write a traceback to a log file
         import traceback
+
         with open("error.log", "w") as f:
             traceback.print_exc(file=f)
         tray_app.stop()
