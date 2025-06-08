@@ -2,7 +2,6 @@ import time
 from typing import List
 
 import psutil
-import pygetwindow as gw
 import pythoncom
 import win32gui
 import win32process
@@ -166,4 +165,3 @@ if __name__ == "__main__":
                 )
     except Exception as e:
         logger.error(f"Error during classification: {e}")
-        pass
