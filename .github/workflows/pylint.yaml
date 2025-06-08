@@ -10,7 +10,7 @@ on:
 jobs:
   lint-diff:
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/lint')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
         with:
@@ -80,7 +80,7 @@ jobs:
 
   lint-full:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
 
