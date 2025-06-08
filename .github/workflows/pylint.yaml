@@ -21,6 +21,15 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
+      # ✅ Comment when linting starts
+      - name: Comment PR - Linting started
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          pr-number: ${{ github.event.issue.number }}
+          message: |
+            🕵️ **Pylint check started** on changed files...
+            _Hang tight, results will be posted here._
+
       - name: Install dependencies and pylint
         run: |
           python -m pip install --upgrade pip
@@ -42,6 +51,7 @@ jobs:
 
       - name: Run pylint on changed files
         id: pylint-diff
+        continue-on-error: true
         run: |
           FILES="${{ steps.changed-files.outputs.changed_files }}"
           if [ -z "$FILES" ]; then
@@ -49,6 +59,7 @@ jobs:
             echo "pylint_score=10.0" >> $GITHUB_OUTPUT
             exit 0
           fi
+
           echo "Running pylint on the following files:"
           echo "$FILES"
           OUTPUT=$(pylint $FILES --rcfile=.pylintrc --disable=import-error --score=y 2>&1)
@@ -62,17 +73,32 @@ jobs:
           fi
           echo "Pylint score: $SCORE"
           echo "pylint_score=$SCORE" >> $GITHUB_OUTPUT
+
           if (( $(echo "$SCORE < 9.5" | bc -l) )); then
-            exit 1
+            echo "Pylint score below threshold"
+            exit 30  # Custom exit code to detect failure
           fi
 
+      # ✅ Comment if passed
       - name: Comment PR with pylint result
-        uses: peter-evans/create-or-update-comment@v3
+        if: success()
+        uses: thollander/actions-comment-pull-request@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.issue.number }}
-          body: |
+          pr-number: ${{ github.event.issue.number }}
+          message: |
             ✅ **Pylint score on changed files**: **${{ steps.pylint-diff.outputs.pylint_score }}**
+
+            _Threshold to pass: 9.5_
+
+      # ❌ Comment if failed
+      - name: Comment PR - Lint failed
+        if: failure()
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          pr-number: ${{ github.event.issue.number }}
+          message: |
+            ❌ **Pylint check failed**.
+            Score: **${{ steps.pylint-diff.outputs.pylint_score }}**
 
             _Threshold to pass: 9.5_
 
