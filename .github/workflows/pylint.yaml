@@ -24,6 +24,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pylint
+          pip install -r requirements.txt
 
       - name: Get changed files in PR
         id: changed-files
@@ -91,6 +92,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pylint
+          pip install -r requirements.txt
 
       - name: Run pylint on full codebase
         id: pylint-full
