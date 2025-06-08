@@ -24,7 +24,7 @@ DEFAULT_TIME_LIMIT = 60  # Default time limit for games in minutes
 DEFAULT_GLOBAL_TIMING_LIMIT = 60  # Default global timing limit in minutes
 
 
-class DB:
+class DB:  # pylint: disable=too-many-public-methods
     def __init__(self, path=DB_PATH):
         self.path = path
         self._ensure_db()

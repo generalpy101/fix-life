@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import List
 
 import psutil
-from psutil import Process
 
 from activity import utils
 from activity.classifier.game_classifier import GamesClassifier
@@ -67,75 +66,68 @@ class Tracker:
 
     def update_game_timings(self):
         game_process_cache = {}  # pid -> (name, create_time)
-
-        previous_tick = time.time()  # For tracking the last update time
-        current_tick = time.time()  # For tracking the current update time
+        previous_tick = time.time()
 
         while not self.stop_event.is_set():
             try:
-                self._handle_first_run_today()  # Ensure DB is populated for the day first
-                exes: List[Process] = utils.get_unique_windows_processes()
-                updated_games = defaultdict(int)
+                self._handle_first_run_today()  # Ensure DB is populated
 
-                for exe in exes:
-                    try:
-                        pid = exe.pid
-                        name = exe.name()
-                        create_time = exe.create_time()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        continue  # Process has exited or is not accessible
+                exes = utils.get_unique_windows_processes()
+                updated_games = self._get_updated_games(exes, game_process_cache, previous_tick)
 
-                    try:
-                        if not self.classifier.is_game(exe):
-                            continue
-                    except Exception:
-                        continue  # Classifier failed, skip
-
-                    now = time.time()
-                    current_tick = time.time()
-
-                    # First-time seen process
-                    if pid not in game_process_cache:
-                        game_process_cache[pid] = (name, create_time)
-
-                        # Check if already logged in DB
-                        existing_time = self.db.get_timing_for_exe(name)
-                        if existing_time is None or existing_time == 0:
-                            # Game was already running when app started — backfill time
-                            backfilled_duration = int(now - create_time)
-                            self.db.update_timing_to_a_specific_value(
-                                name, backfilled_duration
-                            )
-                            continue  # Avoid double-counting in updated_games
-
-                    # Find difference between current time and last update time
-                    # Not using SLEEP_TIME as thread delay may happen
-                    updated_time = int(current_tick - previous_tick)
-                    previous_tick = current_tick
-                    if updated_time <= 0:
-                        continue
-                    updated_games[name] = updated_time
-
-                # Batch update game durations
                 for name, duration in updated_games.items():
                     self.db.update_timing_by_duration(name, duration)
 
-                # Cleanup: remove dead PIDs from the cache
+                # Cleanup: remove dead PIDs
                 live_pids = {exe.pid for exe in exes}
                 game_process_cache = {
-                    pid: data
-                    for pid, data in game_process_cache.items()
-                    if pid in live_pids
+                    pid: data for pid, data in game_process_cache.items() if pid in live_pids
                 }
 
+                previous_tick = time.time()
                 time.sleep(self.SLEEP_TIME)
 
             except Exception as e:
                 logger.error(f"[{datetime.now()}] Error updating game timings: {e}")
                 import traceback  # pylint: disable=import-outside-toplevel
-
                 traceback.print_exc(file="tracker_error.log")
                 break
+
+    def _get_updated_games(self, exes, game_process_cache, previous_tick):
+        updated_games = defaultdict(int)
+        current_tick = time.time()
+
+        for exe in exes:
+            try:
+                pid = exe.pid
+                name = exe.name()
+                create_time = exe.create_time()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+            try:
+                if not self.classifier.is_game(exe):
+                    continue
+            except Exception:
+                continue
+
+            now = time.time()
+
+            if pid not in game_process_cache:
+                game_process_cache[pid] = (name, create_time)
+
+                existing_time = self.db.get_timing_for_exe(name)
+                if existing_time is None or existing_time == 0:
+                    backfilled_duration = int(now - create_time)
+                    self.db.update_timing_to_a_specific_value(name, backfilled_duration)
+                    continue
+
+            updated_time = int(current_tick - previous_tick)
+            if updated_time > 0:
+                updated_games[name] += updated_time
+
+        return updated_games
+
 
     def check_if_processes_running(self, exe_names: List[str]) -> List[str]:
         running_exes = []

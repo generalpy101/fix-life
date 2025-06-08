@@ -2,12 +2,11 @@ import os
 import pickle
 import re
 import sys
-from typing import List
 
 import psutil
-from psutil import Process
 from rapidfuzz import fuzz, process
 
+from activity import utils
 from activity.classifier.heuristic_classify import HeuristicClassifier
 from data import DB
 from log_utils import get_logger
@@ -51,7 +50,7 @@ class GamesClassifier:
 
     def classify(self, exes=[]):  # pylint: disable=dangerous-default-value
         if exes is None or len(exes) == 0:
-            exes = self.get_windows_processes()
+            exes = utils.get_unique_windows_processes()
 
         classifier = HeuristicClassifier(exes)
 
@@ -133,28 +132,6 @@ class GamesClassifier:
         if not exe_name:
             return False
         return self.db.get_is_game(exe_name)
-
-    def get_windows_processes(self) -> List[Process]:
-        processes = list(psutil.process_iter(["pid", "name", "exe"]))
-
-        # Remove all processes we cannot access
-        for proc in processes[:]:
-            try:
-                proc.exe()  # Access the executable path to check permissions
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                processes.remove(proc)
-
-        # Make dictionary of processes by executable path
-        exes = {}
-        for proc in processes:
-            exe_path = proc.info["exe"]
-            if exe_path and exe_path not in exes:
-                exes[exe_path] = proc
-
-        # Convert dictionary values to a list. This was done to remove duplicates
-        exes = list(exes.values())
-
-        return exes
 
 
 if __name__ == "__main__":
