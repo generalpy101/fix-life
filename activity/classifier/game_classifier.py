@@ -27,8 +27,6 @@ GAME_KEYWORDS = ["game", "steam", "crack", "repack", "gog", "epic", "valve", "la
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
 
-MODEL_PATH = os.path.join(PROJECT_DIR, "models", "all-MiniLM-L6-v2")
-
 
 class GamesClassifier:
     def __init__(self):

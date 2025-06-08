@@ -189,5 +189,4 @@ cython_debug/
 .cursorindexingignore
 
 *.db
-*.pkl
 Output/
