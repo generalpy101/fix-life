@@ -25,6 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pylint
+          pip install -r requirements.txt
 
       - name: Get changed files in PR
         id: changed-files
@@ -58,6 +59,7 @@ jobs:
           $score_line = $pylint_output | Select-String -Pattern 'Your code has been rated at'
           if ($score_line) {
             $score = ($score_line -split ' ')[6] -replace '/10:', ''
+            $score = ($score -replace '/10', '')
           } else {
             Write-Output "Failed to parse pylint score, setting to 0"
             $score = 0
@@ -93,6 +95,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pylint
+          pip install -r requirements.txt
 
       - name: Run pylint on full codebase
         id: pylint-full
@@ -109,6 +112,7 @@ jobs:
           $score_line = $pylint_output | Select-String -Pattern 'Your code has been rated at'
           if ($score_line) {
             $score = ($score_line -split ' ')[6] -replace '/10:', ''
+            $score = ($score -replace '/10', '')
           } else {
             Write-Output "Failed to parse pylint score, setting to 0"
             $score = 0
