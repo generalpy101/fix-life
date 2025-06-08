@@ -12,23 +12,16 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/lint')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           cache: 'pip'
-
-      # ✅ Comment when linting starts
-      - name: Comment PR - Linting started
-        uses: thollander/actions-comment-pull-request@v3
-        with:
-          pr-number: ${{ github.event.issue.number }}
-          message: |
-            🕵️ **Pylint check started** on changed files...
-            _Hang tight, results will be posted here._
 
       - name: Install dependencies and pylint
         run: |
@@ -36,13 +29,17 @@ jobs:
           pip install pylint
           pip install -r requirements.txt || echo "Skipping install errors (e.g., Windows-only deps)"
 
+      - name: Comment on PR - Lint started
+        run: |
+          gh pr comment ${{ github.event.issue.number }} --body "🕵️ **Pylint check started** on changed files..."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Get changed Python files
         id: changed-files
         run: |
           PR_NUMBER=${{ github.event.issue.number }}
-          echo "Fetching changed files for PR #$PR_NUMBER"
           FILES=$(gh pr diff "$PR_NUMBER" --name-only | grep '\.py$' || true)
-          echo "$FILES"
           echo "changed_files<<EOF" >> $GITHUB_OUTPUT
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -51,7 +48,6 @@ jobs:
 
       - name: Run pylint on changed files
         id: pylint-diff
-        continue-on-error: true
         run: |
           FILES="${{ steps.changed-files.outputs.changed_files }}"
           if [ -z "$FILES" ]; then
@@ -60,9 +56,10 @@ jobs:
             exit 0
           fi
 
-          echo "Running pylint on the following files:"
+          echo "Running pylint on:"
           echo "$FILES"
-          OUTPUT=$(pylint $FILES --rcfile=.pylintrc --disable=import-error --score=y 2>&1)
+
+          OUTPUT=$(pylint $FILES --rcfile=.pylintrc --disable=import-error --score=y 2>&1 || true)
           echo "$OUTPUT"
           SCORE_LINE=$(echo "$OUTPUT" | grep "Your code has been rated at")
           if [ -n "$SCORE_LINE" ]; then
@@ -75,32 +72,17 @@ jobs:
           echo "pylint_score=$SCORE" >> $GITHUB_OUTPUT
 
           if (( $(echo "$SCORE < 9.5" | bc -l) )); then
-            echo "Pylint score below threshold"
-            exit 30  # Custom exit code to detect failure
+            echo "$OUTPUT" > pylint_output.txt
+            exit 1
           fi
 
-      # ✅ Comment if passed
-      - name: Comment PR with pylint result
-        if: success()
-        uses: thollander/actions-comment-pull-request@v3
-        with:
-          pr-number: ${{ github.event.issue.number }}
-          message: |
-            ✅ **Pylint score on changed files**: **${{ steps.pylint-diff.outputs.pylint_score }}**
-
-            _Threshold to pass: 9.5_
-
-      # ❌ Comment if failed
-      - name: Comment PR - Lint failed
+      - name: Comment on PR - Lint failed
         if: failure()
-        uses: thollander/actions-comment-pull-request@v3
-        with:
-          pr-number: ${{ github.event.issue.number }}
-          message: |
-            ❌ **Pylint check failed**.
-            Score: **${{ steps.pylint-diff.outputs.pylint_score }}**
-
-            _Threshold to pass: 9.5_
+        run: |
+          SCORE="${{ steps.pylint-diff.outputs.pylint_score }}"
+          gh pr comment ${{ github.event.issue.number }} --body "❌ **Pylint failed** with score **$SCORE / 10.0**\n\n_Threshold to pass: 9.5_"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   lint-full:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
