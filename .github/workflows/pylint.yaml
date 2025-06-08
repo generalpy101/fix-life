@@ -1,4 +1,4 @@
-name: Pylint Workflow
+name: Pylint Workflow on Windows
 
 on:
   issue_comment:
@@ -10,7 +10,7 @@ on:
 jobs:
   lint-diff:
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/lint')
-    runs-on: ubuntu-20.04
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -20,53 +20,54 @@ jobs:
         with:
           python-version: '3.10.0'
 
-      - name: Install dependencies
+      - name: Install pylint
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pylint
-          pip install -r requirements.txt
 
       - name: Get changed files in PR
         id: changed-files
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ github.event.issue.number }}
-          echo "Fetching changed files for PR #$PR_NUMBER"
-          FILES=$(gh pr diff $PR_NUMBER --name-only)
-          echo "Changed files:"
-          echo "$FILES"
-          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
-          echo "$FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          $prNumber = $env:GITHUB_EVENT_ISSUE_NUMBER
+          Write-Output "Fetching changed files for PR #$prNumber"
+          $files = gh pr diff $prNumber --name-only
+          Write-Output $files
+          # Output as multiline for GitHub step output
+          echo "changed_files<<EOF" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $files | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
+          echo "EOF" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Run pylint on changed python files
         id: pylint-diff
+        shell: pwsh
         run: |
-          echo "Changed files:"
-          echo "${{ steps.changed-files.outputs.changed_files }}"
-
-          FILES=$(echo "${{ steps.changed-files.outputs.changed_files }}" | grep '\.py$' || true)
-
-          if [ -z "$FILES" ]; then
-            echo "No Python files changed, skipping pylint."
-            echo "pylint_score=10.0" >> $GITHUB_OUTPUT
+          $files = '${{ steps.changed-files.outputs.changed_files }}' -split "`n" | Where-Object { $_ -match '\.py$' }
+          if ($files.Count -eq 0) {
+            Write-Output "No Python files changed, skipping pylint."
+            echo "pylint_score=10.0" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
-          fi
-
-          echo "Running pylint on these files:"
-          echo "$FILES"
-
-          pylint_output=$(pylint $FILES --rcfile=.pylintrc --score=y)
-          echo "$pylint_output"
-
-          score_line=$(echo "$pylint_output" | grep "Your code has been rated at")
-          score=$(echo $score_line | awk '{print $7}' | cut -d'/' -f1)
-
-          echo "Pylint score on changed files: $score"
-          echo "pylint_score=$score" >> $GITHUB_OUTPUT
-
-          python -c "import sys; exit(0 if float('$score') >= 9.5 else 1)"
+          }
+          Write-Output "Running pylint on changed files:"
+          $files | ForEach-Object { Write-Output $_ }
+          $filesString = $files -join ' '
+          $pylint_output = pylint $filesString --rcfile=.pylintrc --score=y 2>&1
+          Write-Output $pylint_output
+          $score_line = $pylint_output | Select-String -Pattern 'Your code has been rated at'
+          if ($score_line) {
+            $score = ($score_line -split ' ')[6] -replace '/10:', ''
+          } else {
+            Write-Output "Failed to parse pylint score, setting to 0"
+            $score = 0
+          }
+          Write-Output "Pylint score on changed files: $score"
+          Add-Content -Path $Env:GITHUB_OUTPUT -Value "pylint_score=$score"
+          if ([double]$score -lt 9.5) {
+            exit 1
+          }
 
       - name: Comment PR with pylint result
         uses: peter-evans/create-or-update-comment@v3
@@ -75,12 +76,12 @@ jobs:
           issue-number: ${{ github.event.issue.number }}
           body: |
             Pylint score on changed files: **${{ steps.pylint-diff.outputs.pylint_score }}**
-
+            
             Threshold to pass: 9.5
 
   lint-full:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-20.04
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -89,24 +90,40 @@ jobs:
           python-version: '3.10.0'
 
       - name: Install pylint
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pylint
-          pip install -r requirements.txt
 
       - name: Run pylint on full codebase
         id: pylint-full
+        shell: pwsh
         run: |
-          pylint_output=$(pylint $(git ls-files '*.py') --rcfile=.pylintrc --score=y) || true
-          echo "$pylint_output"
-
-          score_line=$(echo "$pylint_output" | grep "Your code has been rated at")
-          score=$(echo $score_line | awk '{print $7}' | cut -d'/' -f1)
-
-          echo "Full pylint score: $score"
-          echo "pylint_score=$score" >> $GITHUB_OUTPUT
-
-          python -c "import sys; exit(0 if float('$score') >= 9.7 else 1)"
+          $files = git ls-files '*.py' -z | ForEach-Object { $_.Trim() }
+          if (-not $files) {
+            Write-Output "No Python files found"
+            echo "pylint_score=10.0" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+          $filesString = $files -join ' '
+          Write-Output "Running pylint on files: $filesString"
+          $pylint_output = pylint $filesString --rcfile=.pylintrc --score=y 2>&1
+          Write-Output $pylint_output
+          $score_line = $pylint_output | Select-String -Pattern 'Your code has been rated at'
+          if ($score_line) {
+            $score = ($score_line -split ' ')[6] -replace '/10:', ''
+          } else {
+            Write-Output "Failed to parse pylint score, setting to 0"
+            $score = 0
+          }
+          Write-Output "Full pylint score: $score"
+          Add-Content -Path $Env:GITHUB_OUTPUT -Value "pylint_score=$score"
+          if ([double]$score -ge 9.7) {
+            exit 0
+          } else {
+            exit 1
+          }
 
       - name: Final status
+        shell: pwsh
         run: echo "Pylint full score check passed with score ${{ steps.pylint-full.outputs.pylint_score }}"
