@@ -95,7 +95,7 @@ jobs:
       - name: Run pylint on full codebase
         id: pylint-full
         run: |
-          pylint_output=$(pylint . --rcfile=.pylintrc --score=y)
+          pylint_output=$(pylint $(git ls-files '*.py') --rcfile=.pylintrc --score=y) || true
           echo "$pylint_output"
 
           score_line=$(echo "$pylint_output" | grep "Your code has been rated at")
