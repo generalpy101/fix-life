@@ -2,14 +2,14 @@ name: Pylint Workflow on Windows
 
 on:
   issue_comment:
-    types: [created]
+    types: [created, edited, deleted]
   push:
     branches:
       - main
 
 jobs:
   lint-diff:
-    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/lint')
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/lint')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
