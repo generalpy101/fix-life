@@ -1,20 +1,22 @@
+import random
+import sys
 import threading
 import webbrowser
+
+import pystray
+from dotenv import load_dotenv
+from PIL import Image
+from pystray import MenuItem as item
+
 from activity.tracker import Tracker
 from dashboard import app
-import pystray
-from pystray import MenuItem as item
-from PIL import Image, ImageDraw
-import sys
-import random
 from log_utils import get_logger
-from dotenv import load_dotenv
-import os
 
 load_dotenv()
 logger = get_logger("main", "main.log")
 
 ICON_PATH = "./img/icons/fixlife.ico"
+
 
 class FixItTray:
     def __init__(self):

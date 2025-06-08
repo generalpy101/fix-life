@@ -1,22 +1,21 @@
-import sys
 import os
+import subprocess
+import sys
 import threading
 import time
+from collections import defaultdict
+from datetime import datetime
+from typing import List
+
 import psutil
 from psutil import Process
-from typing import List
-from datetime import datetime
-from collections import defaultdict
-
-import subprocess
-
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+import activity.utils as utils
 from activity.classifier.game_classifier import GamesClassifier
 from data import DB
-import activity.utils as utils
 from log_utils import get_logger
 
 logger = get_logger("tracker", "tracker.log")

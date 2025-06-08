@@ -1,5 +1,6 @@
-import psutil
 from typing import List
+
+import psutil
 
 
 def convert_seconds_to_human_readable(seconds: int) -> str:

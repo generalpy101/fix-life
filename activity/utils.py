@@ -1,5 +1,6 @@
-import psutil
 from typing import List
+
+import psutil
 
 
 def get_unique_windows_processes() -> List[psutil.Process]:

@@ -1,22 +1,19 @@
 import os
-import re
-import psutil
 import pickle
-
-from psutil import Process
+import re
+import sys
 from typing import List
 
-import sys
-import os
+import psutil
+from psutil import Process
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from rapidfuzz import fuzz, process
+
 from activity.classifier.heuristic_classify import HeuristicClassifier
 from data import DB
-
-from rapidfuzz import process, fuzz
-
 from log_utils import get_logger
 
 logger = get_logger("classifier", "classifier.log")

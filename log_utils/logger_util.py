@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import TimedRotatingFileHandler
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,14 +20,10 @@ DEFAULT_LOG_DIR = (
 os.makedirs(DEFAULT_LOG_DIR, exist_ok=True)
 
 
-def get_logger(
-    name: str,
-    log_file: str = None,
-    level=logging.INFO
-):
+def get_logger(name: str, log_file: str = None, level=logging.INFO):
     """
     Create or get a logger.
-    
+
     Args:
         name: Logger name.
         log_file: Optional log file name (ignored if log_to_terminal is True).

@@ -1,13 +1,14 @@
-import psutil
 import time
+from typing import List
+
+import psutil
+import pygetwindow as gw
+import pythoncom
 import win32gui
 import win32process
-import pygetwindow as gw
 import wmi
 from screeninfo import get_monitors
-import pythoncom
 
-from typing import List
 from log_utils import get_logger
 
 # Static exclusions (false positives)

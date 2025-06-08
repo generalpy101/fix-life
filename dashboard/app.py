@@ -1,15 +1,16 @@
-from flask import Flask, render_template, jsonify, request
-
-import sys
 import os
+import sys
+
+from flask import Flask, jsonify, render_template, request
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-import dashboard.web_utils as web_utils
-from log_utils.logger_util import get_logger
 import logging
+
+import dashboard.web_utils as web_utils
 from data import DB
+from log_utils.logger_util import get_logger
 
 app = Flask(__name__)
 flask_logger = get_logger("flask_app", "flask_app.log")
