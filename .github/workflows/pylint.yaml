@@ -53,8 +53,7 @@ jobs:
           }
           Write-Output "Running pylint on changed files:"
           $files | ForEach-Object { Write-Output $_ }
-          $filesString = $files -join ' '
-          $pylint_output = pylint $filesString --rcfile=.pylintrc --score=y 2>&1
+          $pylint_output = pylint $files --rcfile=.pylintrc --score=y 2>&1
           Write-Output $pylint_output
           $score_line = $pylint_output | Select-String -Pattern 'Your code has been rated at'
           if ($score_line) {
@@ -105,9 +104,7 @@ jobs:
             echo "pylint_score=10.0" | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
           }
-          $filesString = $files -join ' '
-          Write-Output "Running pylint on files: $filesString"
-          $pylint_output = pylint $filesString --rcfile=.pylintrc --score=y 2>&1
+          $pylint_output = pylint $files --rcfile=.pylintrc --score=y 2>&1
           Write-Output $pylint_output
           $score_line = $pylint_output | Select-String -Pattern 'Your code has been rated at'
           if ($score_line) {
