@@ -2,14 +2,14 @@ name: Pylint Workflow on Windows
 
 on:
   issue_comment:
-    types: [created]
+    types: [created, edited, deleted]
   push:
     branches:
       - main
 
 jobs:
   lint-diff:
-    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/lint')
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/lint')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
@@ -19,6 +19,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10.0'
+          cache: 'pip'
 
       - name: Install pylint
         shell: pwsh
@@ -33,7 +34,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $prNumber = $env:GITHUB_EVENT_ISSUE_NUMBER
+          $prNumber = ${{ github.event.issue.number }}
           Write-Output "Fetching changed files for PR #$prNumber"
           $files = gh pr diff $prNumber --name-only
           Write-Output $files
@@ -89,6 +90,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10.0'
+          cache: 'pip'
 
       - name: Install pylint
         shell: pwsh
