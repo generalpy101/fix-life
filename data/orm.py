@@ -2,11 +2,21 @@ import sqlite3
 import os
 import threading
 from datetime import datetime
+from dotenv import load_dotenv
 
-# DB path should be %APP_DATA%/local/FixLife <- app name/game_tracker.db
+load_dotenv()
+
+ENV = os.getenv("ENV", "production").lower()
+
+# DB path should be %APP_DATA%/local/FixLife <- app name/game_tracker.db if production
 APPDATA = os.getenv("APPDATA", os.path.expanduser("~"))
 DB_DIR = os.path.join(APPDATA, "FixLife", "data")
 DB_PATH = os.path.join(DB_DIR, "game_tracker.db")
+
+if ENV == "development":
+    CURRENT_DIR = os.path.dirname(__file__)
+    DB_PATH = os.path.join(CURRENT_DIR, "game_tracker.db")
+
 _LOCK = threading.Lock()
 
 DEFAULT_TIME_LIMIT = 60  # Default time limit for games in minutes

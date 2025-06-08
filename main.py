@@ -14,6 +14,8 @@ import os
 load_dotenv()
 logger = get_logger("main", "main.log")
 
+ICON_PATH = "./img/icons/fixlife.ico"
+
 class FixItTray:
     def __init__(self):
         self.icon = None
@@ -70,9 +72,7 @@ class FixItTray:
         webbrowser.open(f"http://localhost:{self.web_app_port}/", new=2)
 
     def _create_image(self):
-        image = Image.new("RGB", (64, 64), "black")
-        dc = ImageDraw.Draw(image)
-        dc.rectangle((16, 16, 48, 48), fill="white")
+        image = Image.open(ICON_PATH)
         return image
 
     def _quit_app(self, icon, item):
