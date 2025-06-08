@@ -8,9 +8,11 @@ from PIL import Image, ImageDraw
 import sys
 import random
 from log_utils import get_logger
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 logger = get_logger("main", "main.log")
-
 
 class FixItTray:
     def __init__(self):
@@ -43,7 +45,7 @@ class FixItTray:
         )
         self.web_app_thread.start()
 
-        logger.info("Web app started on port:", self.web_app_port)
+        logger.info(f"Web app started on port: {self.web_app_port}")
 
         self.icon = pystray.Icon("GameTracker")
         self.icon.icon = self._create_image()

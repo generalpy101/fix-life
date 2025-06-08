@@ -2,6 +2,7 @@
 AppName=FixLife
 AppVersion=1.0
 DefaultDirName={pf}\FixLife
+SetupIconFile=img\icons\fixlife.ico
 DefaultGroupName=FixLife
 OutputBaseFilename=FixLifeInstaller
 Compression=lzma

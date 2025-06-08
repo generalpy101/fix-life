@@ -16,12 +16,12 @@ $nuitkaArgs = @(
     "--remove-output",
     "--include-data-dir=dashboard/templates=dashboard/templates",
     "--include-data-dir=dashboard/static=dashboard/static",
-    "--include-data-dir=log_utils=log_utils",
     "--include-data-dir=activity=activity",
     "--include-data-dir=data=data",
     "--include-data-dir=${env:VIRTUAL_ENV}/Lib/site-packages/werkzeug/debug/shared=werkzeug/debug/shared"
     "--python-flag=nosite",
-    "--jobs=$([Environment]::ProcessorCount)"
+    "--jobs=$([Environment]::ProcessorCount)",
+    "--windows-icon-from-ico=img/icons/fixlife.ico"
 )
 
 # Add --windows-disable-console if NoConsole flag is passed
